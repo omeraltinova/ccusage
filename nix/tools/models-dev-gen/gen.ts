@@ -234,10 +234,13 @@ function generateCodexAutoReviewFallbacks(
 					candidateModel.release_date === model.release_date,
 			);
 		})
-		.map(([modelId, model]) => ({
-			releasedOn: model.release_date!,
-			model: openAiModelName(model.id ?? modelId),
-		}))
+		.map(([modelId, model]) => {
+			const modelName = openAiModelName(model.id ?? modelId);
+			return {
+				releasedOn: modelName === 'gpt-5.6-luna' ? '2026-07-30' : model.release_date!,
+				model: modelName,
+			};
+		})
 		.sort((left, right) => right.releasedOn.localeCompare(left.releasedOn));
 }
 
@@ -249,6 +252,7 @@ function isCodexAutoReviewFallbackCandidate(modelId: string, model: ModelMetadat
 	return (
 		modelName === 'gpt-5' ||
 		modelName === 'gpt-5-codex' ||
+		modelName === 'gpt-5.6-luna' ||
 		/^gpt-5\.\d+$/.test(modelName) ||
 		/^gpt-5\.\d+-codex$/.test(modelName)
 	);
