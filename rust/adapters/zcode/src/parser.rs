@@ -193,6 +193,10 @@ fn is_zai_provider(provider_id: Option<&str>) -> bool {
                 | "zai-coding-plan"
                 | "builtin:zai-coding-plan"
                 | "builtin:bigmodel-coding-plan"
+                | "account:zai-individual-coding-plan"
+                | "account:zai-team-coding-plan"
+                | "account:zai-start-plan"
+                | "account:zai-offpeak-idle-plan"
         )
     })
 }

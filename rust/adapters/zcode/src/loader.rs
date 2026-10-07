@@ -438,6 +438,55 @@ mod tests {
     }
 
     #[test]
+    fn prices_zai_account_plans_for_glm_models() {
+        let providers = [
+            "account:zai-individual-coding-plan",
+            "account:zai-team-coding-plan",
+            "account:zai-start-plan",
+            "account:zai-offpeak-idle-plan",
+        ];
+        let models = [("GLM-5.3", 0.0001555), ("GLM-5.3-Flash", 0.000017)];
+
+        for provider in providers {
+            for (model, expected_cost) in models {
+                let fixture = fs_fixture!({});
+                let _ = fixture.create_dir_all("cli/db");
+                let db_path = fixture.path(super::super::paths::ZCODE_DB_RELATIVE_PATH);
+                create_db(&db_path, false);
+                let db = sqlite::open(&db_path).unwrap();
+                db.execute("INSERT INTO session VALUES ('session-1', '/project', '0.16.3')")
+                    .unwrap();
+                insert_current_usage_on_connection(&db, "usage-account", "completed");
+                let mut statement = db
+                    .prepare("UPDATE model_usage SET provider_id = ?1, model_id = ?2")
+                    .unwrap();
+                statement.bind((1, provider)).unwrap();
+                statement.bind((2, model)).unwrap();
+                statement.next().unwrap();
+                drop(statement);
+                drop(db);
+
+                for mode in [CostMode::Auto, CostMode::Calculate] {
+                    let entries = load_with_mode(fixture.root(), mode);
+                    assert_eq!(entries.len(), 1);
+                    let entry = &entries[0];
+                    assert!(
+                        (entry.cost - expected_cost).abs() < 1e-12,
+                        "{provider} {model}: expected {expected_cost}, got {}",
+                        entry.cost
+                    );
+                    assert!(entry.missing_pricing_model.is_none());
+                    assert_eq!(entry.model.as_deref(), Some(model));
+                    assert_eq!(entry.data.message.usage.input_tokens, 60);
+                    assert_eq!(entry.data.message.usage.output_tokens, 10);
+                    assert_eq!(entry.data.message.usage.cache_creation_input_tokens, 15);
+                    assert_eq!(entry.data.message.usage.cache_read_input_tokens, 25);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn accepts_legacy_schema_without_optional_columns() {
         let fixture = fs_fixture!({});
         let _ = fixture.create_dir_all("cli/db");
